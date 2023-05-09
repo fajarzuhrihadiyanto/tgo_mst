@@ -91,7 +91,7 @@ public:
     }
 
     // Generate mst from the graph with given start index
-    Graph* generateMST(int start_index) {
+    Graph* generateMSTWoEval(int start_index, int dg_capacity) {
         Graph* mst = new Graph();
 
         // define visited array
@@ -108,8 +108,67 @@ public:
         priority_queue<edge, vector<edge>, greater<edge> > pq;
         pq.push(make_pair(0, make_pair(start_node, nullptr)));
 
-        // recalculate total power
-        total_power = total_power + start_node->node_value;
+        // repeat until priority queue empty
+        while (!pq.empty()) {
+            // get weight
+            double weight = pq.top().first;
+
+            // get current node
+            Node* node = pq.top().second.first;
+
+            // get parent node (if any)
+            Node* parent = pq.top().second.second;
+
+            // pop pq
+            pq.pop();
+
+            // if node already visited, then skip
+            if (visited[node->index]) continue;
+
+            // check of total power exceed dg capacity after insert new node
+            total_power = total_power + node->node_value;
+            if (total_power > dg_capacity) break;
+
+            // add node to mst
+            Node* new_node = new Node(node->index, node->node_value, node->priority_value);
+            mst->nodes.emplace_back(new_node);
+            if (parent != nullptr) {
+                Node* new_parent = mst->findByIndex(parent->index);
+                new_parent->adj.emplace_back(make_pair(weight, new_node));
+                new_node->adj.emplace_back(make_pair(node->findAdjByIndex(parent->index)->first, new_parent));
+            }
+
+            // mark the node as visited
+            visited[node->index] = true;
+
+
+            // add all adjacent node to pq
+            for (auto &[weight, adj_node]: node->adj) {
+                if (visited[adj_node->index]) continue;
+
+                pq.push(make_pair(weight, make_pair(adj_node, node)));
+            }
+
+        }
+
+        // return the mst
+        return mst;
+    }
+
+    // Generate mst from the graph with given start index
+    Graph* generateMST(int start_index) {
+        Graph* mst = new Graph();
+
+        // define visited array
+        vector<bool> visited(this->nodes.size() + 1);
+        fill(visited.begin(), visited.end(), false);
+
+        // get node by start index
+        Node* start_node = this->findByIndex(start_index);
+
+        // create priority queue for edge
+        priority_queue<edge, vector<edge>, greater<edge> > pq;
+        pq.push(make_pair(0, make_pair(start_node, nullptr)));
 
         // repeat until priority queue empty
         while (!pq.empty()) {
@@ -139,9 +198,6 @@ public:
 
             // mark the node as visited
             visited[node->index] = true;
-
-            // add node value to total power
-            total_power = total_power + node->node_value;
 
             // add all adjacent node to pq
             for (auto &[weight, adj_node]: node->adj) {
@@ -219,7 +275,7 @@ public:
     }
 };
 
-// function to evaluate mst by dg capacity
+// function to optimize
 void evaluateMST(Graph* mst, int start_index, int dg_capacity) {
     // create priority queue to eliminate node if needed
     priority_queue<Node, vector<Node>, Compare> pq;
@@ -288,6 +344,12 @@ int main() {
 //  PRINT GRAPH
     cout << "ORIGINAL GRAPH" << endl;
     cout << *graph << endl;
+
+//  MST WITHOUT EVALUATION
+    Graph* mst2 = graph->generateMSTWoEval(3, 40);
+    cout << "MINIMUM SPANNING TREE WITHOUT EVALUATION" << endl;
+    cout << *mst2;
+    cout << "total power : " << mst2->getTotalPower() << endl;
 
 //  PRINT MST
     Graph* mst = graph->generateMST(3);
